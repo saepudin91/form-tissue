@@ -5,13 +5,51 @@ from io import BytesIO
 from openpyxl.styles import Font, Alignment
 from openpyxl.utils import get_column_letter
 from openpyxl.utils.dataframe import dataframe_to_rows
-
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 
 st.set_page_config(page_title="Form Tissue", layout="wide")
 st.title("📝 Form Tissue")
 
 if "data" not in st.session_state:
     st.session_state.data = []
+
+def write_to_gsheet(df, sheet_name="Log Tissue Online"):
+    scope = [
+        "https://spreadsheets.google.com/feeds",
+        "https://www.googleapis.com/auth/drive",
+    ]
+
+    creds_dict = {
+        "type": st.secrets["gcp_service_account"]["type"],
+        "project_id": st.secrets["gcp_service_account"]["project_id"],
+        "private_key_id": st.secrets["gcp_service_account"]["private_key_id"],
+        "private_key": st.secrets["gcp_service_account"]["private_key"].replace("\\n", "\n"),
+        "client_email": st.secrets["gcp_service_account"]["client_email"],
+        "client_id": st.secrets["gcp_service_account"]["client_id"],
+        "auth_uri": st.secrets["gcp_service_account"]["auth_uri"],
+        "token_uri": st.secrets["gcp_service_account"]["token_uri"],
+        "auth_provider_x509_cert_url": st.secrets["gcp_service_account"]["auth_provider_x509_cert_url"],
+        "client_x509_cert_url": st.secrets["gcp_service_account"]["client_x509_cert_url"],
+    }
+
+    credentials = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+    client = gspread.authorize(credentials)
+
+    try:
+        spreadsheet = client.open(sheet_name)
+    except:
+        spreadsheet = client.create(sheet_name)
+
+    worksheet = spreadsheet.sheet1
+    worksheet.clear()
+
+    # Insert headers
+    worksheet.append_row(df.columns.tolist())
+
+    # Insert data rows
+    for row in df.values.tolist():
+        worksheet.append_row(row)
 
 with st.form("form_input_shift"):
     st.subheader("Input Data Tissue")
@@ -42,7 +80,14 @@ with st.form("form_input_shift"):
             "Shift": shift,
             "Jumlah": jumlah_angka
         })
-        st.success(f"✅ Data {shift} berhasil ditambahkan!")
+
+        df_all = pd.DataFrame(st.session_state.data)
+
+        try:
+            write_to_gsheet(df_all)
+            st.success("✅ Data berhasil ditambahkan & disimpan ke Google Sheets!")
+        except Exception as e:
+            st.error(f"❌ Gagal simpan ke Google Sheets: {e}")
 
 if st.session_state.data:
     df = pd.DataFrame(st.session_state.data)
@@ -69,7 +114,6 @@ if st.session_state.data:
     pemasukan_summary = pemasukan_last7.groupby("Jenis")["Pemasukan"].sum().reset_index()
     pemasukan_summary.rename(columns={"Pemasukan": "Total Pemasukan"}, inplace=True)
 
-    # --- ✅ Notifikasi jika stok hampir habis ---
     if not pemasukan_summary.empty and not pengeluaran_summary.empty:
         st.markdown("### 🚨 Notifikasi Stok Tissue")
         stok_df = pd.merge(pemasukan_summary, pengeluaran_summary, on="Jenis", how="outer").fillna(0)
@@ -79,14 +123,12 @@ if st.session_state.data:
             if row["Sisa Stok"] <= 15:
                 st.warning(f"⚠️ Stok {row['Jenis']} tersisa {int(row['Sisa Stok'])}. Segera lakukan pemesanan!")
 
-    # --- ✅ Export ke Excel ---
     buffer = BytesIO()
     with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
         df_output.to_excel(writer, sheet_name="Log Tissue", index=False, startrow=2)
         workbook = writer.book
         worksheet = writer.sheets["Log Tissue"]
 
-        # Merge title
         worksheet.merge_cells("A1:F1")
         cell = worksheet["A1"]
         cell.value = "📋 Data Tissue Masuk & Keluar"
@@ -96,24 +138,24 @@ if st.session_state.data:
         for col in range(1, 7):
             worksheet.column_dimensions[get_column_letter(col)].width = 15
 
-        start_rekap_row = len(df_output) + 6
+        start_row = len(df_output) + 6
 
         if not pengeluaran_summary.empty:
-            worksheet.cell(row=start_rekap_row, column=1).value = "🔻 Rekap Pengeluaran 7 Hari Terakhir"
-            worksheet.cell(row=start_rekap_row, column=1).font = Font(bold=True, size=14)
+            worksheet.cell(row=start_row, column=1).value = "🔻 Rekap Pengeluaran 7 Hari Terakhir"
+            worksheet.cell(row=start_row, column=1).font = Font(bold=True, size=14)
 
-            for r in dataframe_to_rows(pengeluaran_summary, index=False, header=True):
-                worksheet.append(r)
+            for i, r in enumerate(dataframe_to_rows(pengeluaran_summary, index=False, header=True)):
+                for j, val in enumerate(r, start=1):
+                    worksheet.cell(row=start_row + i + 1, column=j, value=val)
 
         if not pemasukan_summary.empty:
-            pemasukan_start_col = 5
-            row_offset = start_rekap_row
-            worksheet.cell(row=row_offset, column=pemasukan_start_col).value = "🔺 Rekap Pemasukan 7 Hari Terakhir"
-            worksheet.cell(row=row_offset, column=pemasukan_start_col).font = Font(bold=True, size=14)
+            start_col = 5
+            worksheet.cell(row=start_row, column=start_col).value = "🔺 Rekap Pemasukan 7 Hari Terakhir"
+            worksheet.cell(row=start_row, column=start_col).font = Font(bold=True, size=14)
 
-            for idx, row in pemasukan_summary.iterrows():
-                worksheet.cell(row=row_offset + 1 + idx, column=pemasukan_start_col).value = row["Jenis"]
-                worksheet.cell(row=row_offset + 1 + idx, column=pemasukan_start_col + 1).value = row["Total Pemasukan"]
+            for i, r in enumerate(dataframe_to_rows(pemasukan_summary, index=False, header=True)):
+                for j, val in enumerate(r, start=1):
+                    worksheet.cell(row=start_row + i + 1, column=start_col + j - 1, value=val)
 
     buffer.seek(0)
 
