@@ -22,9 +22,14 @@ creds = Credentials.from_service_account_info(
 client = gspread.authorize(creds)
 sheet = client.open("Log Tissue").sheet1
 
-# ✅ Tambahkan header jika sheet kosong
-if len(sheet.get_all_values()) == 0:
-    sheet.append_row(["Jenis", "Tanggal", "Hari", "Shift", "Pengeluaran", "Pemasukan"])
+# ✅ Tambahkan header jika belum sesuai
+expected_header = ["Jenis", "Tanggal", "Hari", "Shift", "Pengeluaran", "Pemasukan"]
+first_row = sheet.row_values(1)
+if first_row != expected_header:
+    values = sheet.get_all_values()
+    if len(values) > 0:
+        sheet.clear()
+    sheet.append_row(expected_header)
 
 # =============================
 # 📝 Konfigurasi Aplikasi
@@ -33,13 +38,13 @@ st.set_page_config(page_title="Form Tissue", layout="wide")
 st.title("📝 Form Tissue")
 
 # =============================
-# 💾 Inisialisasi Session State
+# 📆 Inisialisasi Session State
 # =============================
 if "data" not in st.session_state:
     st.session_state.data = []
 
 # =============================
-# 📥 Form Input
+# 📅 Form Input
 # =============================
 with st.form("form_input_shift"):
     st.subheader("Input Data Tissue")
@@ -112,7 +117,7 @@ try:
                 st.warning(f"⚠️ Stok {row['Jenis']} tersisa {int(row['Sisa Stok'])}. Segera lakukan pemesanan!")
 
     # =============================
-    # 📥 Export ke Excel
+    # 📅 Export ke Excel
     # =============================
     buffer = BytesIO()
     with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
@@ -141,7 +146,7 @@ try:
 
         if not pemasukan_summary.empty:
             col_offset = 5
-            worksheet.cell(row=start_rekap_row, column=col_offset).value = "🔺 Rekap Pemasukan 7 Hari Terakhir"
+            worksheet.cell(row=start_rekap_row, column=col_offset).value = "🔹 Rekap Pemasukan 7 Hari Terakhir"
             worksheet.cell(row=start_rekap_row, column=col_offset).font = Font(bold=True, size=14)
 
             for idx, row in pemasukan_summary.iterrows():
@@ -150,22 +155,22 @@ try:
 
     buffer.seek(0)
     st.download_button(
-        "📥 Download Excel Rapi",
+        "📅 Download Excel Rapi",
         buffer.getvalue(),
         file_name="log_tissue_dan_rekap.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
     # =============================
-    # 📈 Rekap di Streamlit
+    # 📊 Rekap di Streamlit
     # =============================
     st.markdown("---")
-    st.subheader("📈 Rekap 7 Hari Terakhir")
+    st.subheader("📊 Rekap 7 Hari Terakhir")
     if not pengeluaran_summary.empty:
         st.write("### 🔻 Total Pengeluaran:")
         st.dataframe(pengeluaran_summary)
     if not pemasukan_summary.empty:
-        st.write("### 🔺 Total Pemasukan:")
+        st.write("### 🔹 Total Pemasukan:")
         st.dataframe(pemasukan_summary)
 
 except Exception as e:
