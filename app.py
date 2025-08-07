@@ -14,7 +14,8 @@ creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 client = gspread.authorize(creds)
 
 # Gunakan nama file dan nama worksheet yang sesuai
-sheet = client.open("Log Tissue").worksheet("sheet1")
+# Lebih stabil, pakai ID langsung
+sheet = client.open_by_key("1NGfDRnXa4rmD5n-F-ZMdtSNX__bpHiUPzKJU2KeUSaU").worksheet("Sheet1")
 
 # ===================== FORM =====================
 with st.form("tissue_form"):
