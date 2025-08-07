@@ -100,32 +100,7 @@ try:
     pemasukan_summary = pemasukan_last7.groupby("Jenis")["Pemasukan"].sum().reset_index()
     pemasukan_summary.rename(columns={"Pemasukan": "Total Pemasukan"}, inplace=True)
 
-    # =============================
-    # 📝 Simpan Rekap ke Sheet "Rekap"
-    # =============================
-    try:
-        if "Rekap" not in [ws.title for ws in client.open("Log Tissue").worksheets()]:
-            client.open("Log Tissue").add_worksheet(title="Rekap", rows="100", cols="10")
-
-        rekap_sheet = client.open("Log Tissue").worksheet("Rekap")
-        rekap_sheet.clear()
-
-        pengeluaran_values = [["🔻 Rekap Pengeluaran 7 Hari Terakhir"], ["Jenis", "Total Pengeluaran"]] + pengeluaran_summary.values.tolist()
-        for row in pengeluaran_values:
-            rekap_sheet.append_row([str(cell) for cell in row])
-
-        rekap_sheet.append_row([])
-
-        pemasukan_values = [["🔺 Rekap Pemasukan 7 Hari Terakhir"], ["Jenis", "Total Pemasukan"]] + pemasukan_summary.values.tolist()
-        for row in pemasukan_values:
-            rekap_sheet.append_row([str(cell) for cell in row])
-
-    except Exception as e:
-        st.error(f"Gagal simpan rekap ke Sheet 'Rekap': {e}")
-
-    # =============================
-    # 🚨 Notifikasi Stok Rendah
-    # =============================
+    # 🚨 Notifikasi stok rendah
     if not pemasukan_summary.empty and not pengeluaran_summary.empty:
         st.markdown("### 🚨 Notifikasi Stok Tissue")
         stok_df = pd.merge(pemasukan_summary, pengeluaran_summary, on="Jenis", how="outer").fillna(0)
@@ -154,16 +129,19 @@ try:
 
         start_rekap_row = len(df) + 6
 
+        # 🔻 Pengeluaran
         if not pengeluaran_summary.empty:
             worksheet.cell(row=start_rekap_row, column=1).value = "🔻 Rekap Pengeluaran 7 Hari Terakhir"
             worksheet.cell(row=start_rekap_row, column=1).font = Font(bold=True, size=14)
             for r in dataframe_to_rows(pengeluaran_summary, index=False, header=True):
                 worksheet.append(r)
 
+        # 🔺 Pemasukan
         if not pemasukan_summary.empty:
             col_offset = 5
             worksheet.cell(row=start_rekap_row, column=col_offset).value = "🔺 Rekap Pemasukan 7 Hari Terakhir"
             worksheet.cell(row=start_rekap_row, column=col_offset).font = Font(bold=True, size=14)
+
             for idx, row in pemasukan_summary.iterrows():
                 worksheet.cell(row=start_rekap_row + 1 + idx, column=col_offset).value = row["Jenis"]
                 worksheet.cell(row=start_rekap_row + 1 + idx, column=col_offset + 1).value = row["Total Pemasukan"]
