@@ -13,7 +13,7 @@ creds = ServiceAccountCredentials.from_json_keyfile_name("service_account.json",
 client = gspread.authorize(creds)
 
 # Ganti dengan nama Google Sheet kamu
-sheet = client.open("Log Tissue Online").sheet1
+sheet = client.open("Log Tissue").sheet1
 
 # =====================
 # Form Input Data
