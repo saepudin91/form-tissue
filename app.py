@@ -18,15 +18,23 @@ creds_dict = st.secrets["gcp_service_account"]
 creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 client = gspread.authorize(creds)
 
-# Buka sheet
-sheet = client.open_by_key("1NGfDRnXa4rmD5n-F-ZMdtSNX__bpHiUPzKJU2KeUSaU").worksheet("Sheet1")
+# ===================== AKSES SHEET =====================
+SHEET_KEY = "1NGfDRnXa4rmD5n-F-ZMdtSNX__bpHiUPzKJU2KeUSaU"
+SHEET_NAME = "Sheet1"
 
-# ===================== CEK & TAMBAHKAN HEADER JIKA BELUM ADA =====================
-header = ["Jenis", "Tanggal", "Hari", "Shift", "Pengeluaran", "Pemasukan"]
+try:
+    sheet = client.open_by_key(SHEET_KEY).worksheet(SHEET_NAME)
+except Exception as e:
+    st.stop()
+    st.error(f"❌ Gagal membuka sheet: {e}")
+
+# ===================== CEK HEADER =====================
+EXPECTED_HEADER = ["Jenis", "Tanggal", "Hari", "Shift", "Pengeluaran", "Pemasukan"]
 current_data = sheet.get_all_values()
 
-if len(current_data) == 0:
-    sheet.append_row(header)
+if len(current_data) == 0 or current_data[0] != EXPECTED_HEADER:
+    sheet.clear()
+    sheet.append_row(EXPECTED_HEADER)
 
 # ===================== FORM =====================
 with st.form("tissue_form"):
@@ -57,12 +65,13 @@ with st.form("tissue_form"):
 
 # ===================== TAMPILKAN DATA =====================
 st.subheader("📊 Data Tissue Masuk & Keluar:")
+
 try:
     records = sheet.get_all_values()
     if len(records) > 1:
         df = pd.DataFrame(records[1:], columns=records[0])
         st.dataframe(df, use_container_width=True)
     else:
-        st.info("Sheet masih kosong.")
+        st.info("📭 Sheet masih kosong.")
 except Exception as e:
     st.warning(f"⚠️ Gagal mengambil data: {e}")
