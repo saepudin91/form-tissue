@@ -129,22 +129,36 @@ try:
 
         start_rekap_row = len(df) + 6
 
-        # 🔻 Pengeluaran
-        if not pengeluaran_summary.empty:
-            worksheet.cell(row=start_rekap_row, column=1).value = "🔻 Rekap Pengeluaran 7 Hari Terakhir"
-            worksheet.cell(row=start_rekap_row, column=1).font = Font(bold=True, size=14)
-            for r in dataframe_to_rows(pengeluaran_summary, index=False, header=True):
-                worksheet.append(r)
+        # 🔻 Rekap Pengeluaran
+if not pengeluaran_summary.empty:
+    worksheet.cell(row=start_rekap_row, column=1).value = "🔻 Rekap Pengeluaran 7 Hari Terakhir"
+    worksheet.cell(row=start_rekap_row, column=1).font = Font(bold=True, size=14)
 
-        # 🔺 Pemasukan
-        if not pemasukan_summary.empty:
-            col_offset = 5
-            worksheet.cell(row=start_rekap_row, column=col_offset).value = "🔺 Rekap Pemasukan 7 Hari Terakhir"
-            worksheet.cell(row=start_rekap_row, column=col_offset).font = Font(bold=True, size=14)
+    # Header
+    for col_idx, col_name in enumerate(pengeluaran_summary.columns, start=1):
+        worksheet.cell(row=start_rekap_row + 1, column=col_idx).value = col_name
+        worksheet.cell(row=start_rekap_row + 1, column=col_idx).font = Font(bold=True)
 
-            for idx, row in pemasukan_summary.iterrows():
-                worksheet.cell(row=start_rekap_row + 1 + idx, column=col_offset).value = row["Jenis"]
-                worksheet.cell(row=start_rekap_row + 1 + idx, column=col_offset + 1).value = row["Total Pemasukan"]
+    # Data
+    for row_idx, row in enumerate(pengeluaran_summary.itertuples(index=False), start=start_rekap_row + 2):
+        for col_idx, value in enumerate(row, start=1):
+            worksheet.cell(row=row_idx, column=col_idx).value = value
+
+# 🔺 Rekap Pemasukan
+if not pemasukan_summary.empty:
+    col_offset = 5
+    worksheet.cell(row=start_rekap_row, column=col_offset).value = "🔺 Rekap Pemasukan 7 Hari Terakhir"
+    worksheet.cell(row=start_rekap_row, column=col_offset).font = Font(bold=True, size=14)
+
+    # Header
+    for col_idx, col_name in enumerate(pemasukan_summary.columns, start=col_offset):
+        worksheet.cell(row=start_rekap_row + 1, column=col_idx).value = col_name
+        worksheet.cell(row=start_rekap_row + 1, column=col_idx).font = Font(bold=True)
+
+    # Data
+    for row_idx, row in enumerate(pemasukan_summary.itertuples(index=False), start=start_rekap_row + 2):
+        for col_idx, value in enumerate(row, start=col_offset):
+            worksheet.cell(row=row_idx, column=col_idx).value = value
 
     buffer.seek(0)
     st.download_button(
