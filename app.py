@@ -7,9 +7,10 @@ from datetime import datetime
 st.set_page_config(page_title="Log Tissue", layout="centered")
 st.title("🧻 Form Tissue Masuk & Keluar")
 
-# Konfigurasi koneksi ke Google Sheets
+# Gunakan kredensial dari streamlit secrets
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = ServiceAccountCredentials.from_json_keyfile_name("service_account.json", scope)
+creds_dict = st.secrets["gcp_service_account"]
+creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 client = gspread.authorize(creds)
 
 # Ganti dengan nama Google Sheet kamu
@@ -26,14 +27,15 @@ with st.form("tissue_form"):
         shift = st.selectbox("Shift:", ["Shift 1", "Shift 2", "Shift 3"])
 
     with col2:
-        tanggal = datetime.today().strftime('%Y-%m-%d')
-        hari = datetime.today().strftime('%A')
         pengeluaran = st.number_input("Pengeluaran (pcs/roll/dus)", min_value=0, value=0)
         pemasukan = st.number_input("Pemasukan (pcs/roll/dus)", min_value=0, value=0)
 
     submitted = st.form_submit_button("➕ Tambahkan")
 
     if submitted:
+        now = datetime.now()
+        tanggal = now.strftime('%Y-%m-%d')
+        hari = now.strftime('%A')
         try:
             sheet.append_row([jenis, tanggal, hari, shift, pengeluaran, pemasukan])
             st.success("✅ Data berhasil disimpan ke Google Sheets!")
