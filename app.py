@@ -4,17 +4,21 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
 
+# ===================== KONFIGURASI =====================
 st.set_page_config(page_title="Log Tissue", layout="centered")
 st.title("🧻 Form Tissue Masuk & Keluar")
 
-# Konfigurasi koneksi ke Google Sheets
-scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+# Scope dan autentikasi ke Google Sheets
+scope = [
+    "https://spreadsheets.google.com/feeds",
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive"
+]
 creds_dict = st.secrets["gcp_service_account"]
 creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 client = gspread.authorize(creds)
 
-# Gunakan nama file dan nama worksheet yang sesuai
-# Lebih stabil, pakai ID langsung
+# Buka spreadsheet dan worksheet
 sheet = client.open_by_key("1NGfDRnXa4rmD5n-F-ZMdtSNX__bpHiUPzKJU2KeUSaU").worksheet("Sheet1")
 
 # ===================== FORM =====================
@@ -38,10 +42,14 @@ with st.form("tissue_form"):
         except Exception as e:
             st.error(f"❌ Gagal menyimpan data: {e}")
 
-# ===================== DATAFRAME =====================
+# ===================== TAMPILKAN DATA =====================
 st.subheader("📊 Data Tissue Masuk & Keluar:")
 try:
-    df = pd.DataFrame(sheet.get_all_records())
-    st.dataframe(df, use_container_width=True)
+    records = sheet.get_all_values()
+    if len(records) > 0:
+        df = pd.DataFrame(records[1:], columns=records[0])  # Gunakan baris pertama sebagai header
+        st.dataframe(df, use_container_width=True)
+    else:
+        st.info("Sheet masih kosong.")
 except Exception as e:
     st.warning(f"⚠️ Gagal mengambil data: {e}")
