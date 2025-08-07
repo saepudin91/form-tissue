@@ -14,9 +14,14 @@ scope = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
 ]
-creds_dict = st.secrets["gcp_service_account"]
-creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-client = gspread.authorize(creds)
+
+try:
+    creds_dict = st.secrets["gcp_service_account"]
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+    client = gspread.authorize(creds)
+except Exception as e:
+    st.error(f"❌ Gagal mengautentikasi ke Google Sheets: {e}")
+    st.stop()
 
 # ===================== AKSES SHEET =====================
 SHEET_KEY = "1NGfDRnXa4rmD5n-F-ZMdtSNX__bpHiUPzKJU2KeUSaU"
@@ -25,8 +30,8 @@ SHEET_NAME = "Sheet1"
 try:
     sheet = client.open_by_key(SHEET_KEY).worksheet(SHEET_NAME)
 except Exception as e:
-    st.stop()
     st.error(f"❌ Gagal membuka sheet: {e}")
+    st.stop()
 
 # ===================== CEK HEADER =====================
 EXPECTED_HEADER = ["Jenis", "Tanggal", "Hari", "Shift", "Pengeluaran", "Pemasukan"]
