@@ -22,14 +22,10 @@ creds = Credentials.from_service_account_info(
 client = gspread.authorize(creds)
 sheet = client.open("Log Tissue").sheet1
 
-# ✅ Tambahkan header jika belum sesuai
-expected_header = ["Jenis", "Tanggal", "Hari", "Shift", "Pengeluaran", "Pemasukan"]
-first_row = sheet.row_values(1)
-if first_row != expected_header:
-    values = sheet.get_all_values()
-    if len(values) > 0:
-        sheet.clear()
-    sheet.append_row(expected_header)
+# ✅ Tambahkan header jika sheet kosong
+if len(sheet.get_all_values()) == 0:
+    header = ["Jenis", "Tanggal", "Hari", "Shift", "Pengeluaran", "Pemasukan"]
+    sheet.append_row(header)
 
 # =============================
 # 📝 Konfigurasi Aplikasi
@@ -37,14 +33,11 @@ if first_row != expected_header:
 st.set_page_config(page_title="Form Tissue", layout="wide")
 st.title("📝 Form Tissue")
 
-# =============================
-# 📆 Inisialisasi Session State
-# =============================
 if "data" not in st.session_state:
     st.session_state.data = []
 
 # =============================
-# 📅 Form Input
+# 📥 Form Input
 # =============================
 with st.form("form_input_shift"):
     st.subheader("Input Data Tissue")
@@ -86,15 +79,16 @@ with st.form("form_input_shift"):
 # 📊 Tampilkan Data Sheet
 # =============================
 try:
-    df = pd.DataFrame(sheet.get_all_records())
-    if df.empty:
+    records = sheet.get_all_records()
+    if not records:
         st.info("Belum ada data pada Google Sheets.")
         st.stop()
+
+    df = pd.DataFrame(records)
 
     st.write("📋 Data Tissue Masuk & Keluar:")
     st.dataframe(df, use_container_width=True)
 
-    # Rekap 7 hari terakhir
     df["Tanggal"] = pd.to_datetime(df["Tanggal"])
 
     pengeluaran_last7 = df[(df["Pengeluaran"] > 0) & (df["Tanggal"] >= datetime.today() - timedelta(days=6))]
@@ -106,7 +100,7 @@ try:
     pemasukan_summary = pemasukan_last7.groupby("Jenis")["Pemasukan"].sum().reset_index()
     pemasukan_summary.rename(columns={"Pemasukan": "Total Pemasukan"}, inplace=True)
 
-    # 🔔 Notifikasi stok hampir habis
+    # 🚨 Notifikasi stok rendah
     if not pemasukan_summary.empty and not pengeluaran_summary.empty:
         st.markdown("### 🚨 Notifikasi Stok Tissue")
         stok_df = pd.merge(pemasukan_summary, pengeluaran_summary, on="Jenis", how="outer").fillna(0)
@@ -117,15 +111,13 @@ try:
                 st.warning(f"⚠️ Stok {row['Jenis']} tersisa {int(row['Sisa Stok'])}. Segera lakukan pemesanan!")
 
     # =============================
-    # 📅 Export ke Excel
+    # 📥 Export ke Excel
     # =============================
     buffer = BytesIO()
     with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
         df.to_excel(writer, sheet_name="Log Tissue", index=False, startrow=2)
-        workbook = writer.book
         worksheet = writer.sheets["Log Tissue"]
 
-        # Merge title
         worksheet.merge_cells("A1:F1")
         cell = worksheet["A1"]
         cell.value = "📋 Data Tissue Masuk & Keluar"
@@ -137,16 +129,17 @@ try:
 
         start_rekap_row = len(df) + 6
 
+        # 🔻 Pengeluaran
         if not pengeluaran_summary.empty:
             worksheet.cell(row=start_rekap_row, column=1).value = "🔻 Rekap Pengeluaran 7 Hari Terakhir"
             worksheet.cell(row=start_rekap_row, column=1).font = Font(bold=True, size=14)
-
             for r in dataframe_to_rows(pengeluaran_summary, index=False, header=True):
                 worksheet.append(r)
 
+        # 🔺 Pemasukan
         if not pemasukan_summary.empty:
             col_offset = 5
-            worksheet.cell(row=start_rekap_row, column=col_offset).value = "🔹 Rekap Pemasukan 7 Hari Terakhir"
+            worksheet.cell(row=start_rekap_row, column=col_offset).value = "🔺 Rekap Pemasukan 7 Hari Terakhir"
             worksheet.cell(row=start_rekap_row, column=col_offset).font = Font(bold=True, size=14)
 
             for idx, row in pemasukan_summary.iterrows():
@@ -155,22 +148,22 @@ try:
 
     buffer.seek(0)
     st.download_button(
-        "📅 Download Excel Rapi",
+        "📥 Download Excel Rapi",
         buffer.getvalue(),
         file_name="log_tissue_dan_rekap.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
     # =============================
-    # 📊 Rekap di Streamlit
+    # 📈 Rekap di Streamlit
     # =============================
     st.markdown("---")
-    st.subheader("📊 Rekap 7 Hari Terakhir")
+    st.subheader("📈 Rekap 7 Hari Terakhir")
     if not pengeluaran_summary.empty:
         st.write("### 🔻 Total Pengeluaran:")
         st.dataframe(pengeluaran_summary)
     if not pemasukan_summary.empty:
-        st.write("### 🔹 Total Pemasukan:")
+        st.write("### 🔺 Total Pemasukan:")
         st.dataframe(pemasukan_summary)
 
 except Exception as e:
