@@ -13,8 +13,9 @@ creds_dict = st.secrets["gcp_service_account"]
 creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 client = gspread.authorize(creds)
 
-# Ganti dengan nama Google Sheet kamu
-sheet = https://docs.google.com/spreadsheets/d/1NGfDRnXa4rmD5n-F-ZMdtSNX__bpHiUPzKJU2KeUSaU/edit?gid=0#gid=0
+# Gunakan ID Spreadsheet (bukan URL)
+sheet_id = "1NGfDRnXa4rmD5n-F-ZMdtSNX__bpHiUPzKJU2KeUSaU"
+sheet = client.open_by_key(sheet_id).sheet1
 
 with st.form("tissue_form"):
     col1, col2 = st.columns(2)
