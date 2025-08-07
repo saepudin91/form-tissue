@@ -14,7 +14,7 @@ creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 client = gspread.authorize(creds)
 
 # Ganti dengan nama Google Sheet kamu
-sheet = client.open_by_key("ID_SPREADSHEET_KAMU").sheet1
+sheet = client.open_by_key("Log Tissue").sheet1
 
 with st.form("tissue_form"):
     col1, col2 = st.columns(2)
