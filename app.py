@@ -9,7 +9,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 
 # =============================
-# 🔑 Setup koneksi ke Google Sheets
+# 🔑 Koneksi Google Sheets
 # =============================
 scope = [
     "https://www.googleapis.com/auth/spreadsheets",
@@ -22,10 +22,15 @@ creds = Credentials.from_service_account_info(
 client = gspread.authorize(creds)
 sheet = client.open("Log Tissue").sheet1
 
-# ✅ Tambahkan header jika sheet kosong
-if len(sheet.get_all_values()) == 0:
-    header = ["Jenis", "Tanggal", "Hari", "Shift", "Pengeluaran", "Pemasukan"]
-    sheet.append_row(header)
+# =============================
+# ✅ Tambahkan Header Otomatis
+# =============================
+expected_header = ["Jenis", "Tanggal", "Hari", "Shift", "Pengeluaran", "Pemasukan"]
+existing_values = sheet.get_all_values()
+
+if not existing_values or existing_values[0] != expected_header:
+    sheet.clear()
+    sheet.append_row(expected_header)
 
 # =============================
 # 📝 Konfigurasi Aplikasi
@@ -33,6 +38,9 @@ if len(sheet.get_all_values()) == 0:
 st.set_page_config(page_title="Form Tissue", layout="wide")
 st.title("📝 Form Tissue")
 
+# =============================
+# 💾 Inisialisasi Session State
+# =============================
 if "data" not in st.session_state:
     st.session_state.data = []
 
@@ -79,12 +87,10 @@ with st.form("form_input_shift"):
 # 📊 Tampilkan Data Sheet
 # =============================
 try:
-    records = sheet.get_all_records()
-    if not records:
+    df = pd.DataFrame(sheet.get_all_records())
+    if df.empty:
         st.info("Belum ada data pada Google Sheets.")
         st.stop()
-
-    df = pd.DataFrame(records)
 
     st.write("📋 Data Tissue Masuk & Keluar:")
     st.dataframe(df, use_container_width=True)
@@ -100,7 +106,9 @@ try:
     pemasukan_summary = pemasukan_last7.groupby("Jenis")["Pemasukan"].sum().reset_index()
     pemasukan_summary.rename(columns={"Pemasukan": "Total Pemasukan"}, inplace=True)
 
-    # 🚨 Notifikasi stok rendah
+    # =============================
+    # 🚨 Notifikasi Stok
+    # =============================
     if not pemasukan_summary.empty and not pengeluaran_summary.empty:
         st.markdown("### 🚨 Notifikasi Stok Tissue")
         stok_df = pd.merge(pemasukan_summary, pengeluaran_summary, on="Jenis", how="outer").fillna(0)
@@ -116,8 +124,10 @@ try:
     buffer = BytesIO()
     with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
         df.to_excel(writer, sheet_name="Log Tissue", index=False, startrow=2)
+        workbook = writer.book
         worksheet = writer.sheets["Log Tissue"]
 
+        # Judul
         worksheet.merge_cells("A1:F1")
         cell = worksheet["A1"]
         cell.value = "📋 Data Tissue Masuk & Keluar"
@@ -129,14 +139,13 @@ try:
 
         start_rekap_row = len(df) + 6
 
-        # 🔻 Pengeluaran
         if not pengeluaran_summary.empty:
             worksheet.cell(row=start_rekap_row, column=1).value = "🔻 Rekap Pengeluaran 7 Hari Terakhir"
             worksheet.cell(row=start_rekap_row, column=1).font = Font(bold=True, size=14)
+
             for r in dataframe_to_rows(pengeluaran_summary, index=False, header=True):
                 worksheet.append(r)
 
-        # 🔺 Pemasukan
         if not pemasukan_summary.empty:
             col_offset = 5
             worksheet.cell(row=start_rekap_row, column=col_offset).value = "🔺 Rekap Pemasukan 7 Hari Terakhir"
