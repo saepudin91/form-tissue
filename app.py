@@ -22,6 +22,10 @@ creds = Credentials.from_service_account_info(
 client = gspread.authorize(creds)
 sheet = client.open("Log Tissue").sheet1
 
+# ✅ Tambahkan header jika sheet kosong
+if len(sheet.get_all_values()) == 0:
+    sheet.append_row(["Jenis", "Tanggal", "Hari", "Shift", "Pengeluaran", "Pemasukan"])
+
 # =============================
 # 📝 Konfigurasi Aplikasi
 # =============================
