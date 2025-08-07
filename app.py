@@ -7,21 +7,23 @@ from datetime import datetime
 st.set_page_config(page_title="Log Tissue", layout="centered")
 st.title("🧻 Form Tissue Masuk & Keluar")
 
-# Gunakan secrets di Streamlit Cloud
+# Konfigurasi koneksi ke Google Sheets
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 creds_dict = st.secrets["gcp_service_account"]
 creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 client = gspread.authorize(creds)
 
-# Gunakan ID Spreadsheet (bukan URL)
-sheet_id = "1NGfDRnXa4rmD5n-F-ZMdtSNX__bpHiUPzKJU2KeUSaU"
-sheet = client.open_by_key(sheet_id).sheet1
+# Gunakan nama file dan nama worksheet yang sesuai
+sheet = client.open("Log Tissue").worksheet("sheet1")
 
+# ===================== FORM =====================
 with st.form("tissue_form"):
     col1, col2 = st.columns(2)
+
     with col1:
         jenis = st.selectbox("Jenis Tissue:", ["Tissue Roll", "Hand Towel", "Lainnya"])
         shift = st.selectbox("Shift:", ["Shift 1", "Shift 2", "Shift 3"])
+
     with col2:
         tanggal = datetime.today().strftime('%Y-%m-%d')
         hari = datetime.today().strftime('%A')
@@ -35,6 +37,7 @@ with st.form("tissue_form"):
         except Exception as e:
             st.error(f"❌ Gagal menyimpan data: {e}")
 
+# ===================== DATAFRAME =====================
 st.subheader("📊 Data Tissue Masuk & Keluar:")
 try:
     df = pd.DataFrame(sheet.get_all_records())
