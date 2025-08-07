@@ -15,6 +15,11 @@ scope = [
     "https://www.googleapis.com/auth/drive"
 ]
 
+# Cek apakah secrets tersedia
+if "gcp_service_account" not in st.secrets:
+    st.error("❌ Secrets 'gcp_service_account' belum disetting.")
+    st.stop()
+
 try:
     creds_dict = st.secrets["gcp_service_account"]
     creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
