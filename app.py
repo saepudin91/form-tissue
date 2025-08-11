@@ -157,7 +157,7 @@ try:
 
     buffer.seek(0)
     st.download_button(
-        "📥 Download Excel Rapi",
+        "📥 Download",
         buffer.getvalue(),
         file_name="log_tissue_dan_rekap.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -167,7 +167,7 @@ try:
     # 📈 Rekap di Streamlit
     # =============================
     st.markdown("---")
-    st.subheader("📈 Rekap 7 Hari Terakhir")
+    st.subheader("📈 Rekap harian")
     if not pengeluaran_summary.empty:
         st.write("### 🔻 Total Pengeluaran:")
         st.dataframe(pengeluaran_summary)
