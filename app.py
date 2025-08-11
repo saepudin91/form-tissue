@@ -140,7 +140,7 @@ try:
         start_rekap_row = len(df) + 6
 
         if not pengeluaran_summary.empty:
-            worksheet.cell(row=start_rekap_row, column=1).value = "🔻 Rekap Pengeluaran 7 Hari Terakhir"
+            worksheet.cell(row=start_rekap_row, column=1).value = "🔻 Rekap Pengeluaran Harian"
             worksheet.cell(row=start_rekap_row, column=1).font = Font(bold=True, size=14)
 
             for r in dataframe_to_rows(pengeluaran_summary, index=False, header=True):
@@ -148,7 +148,7 @@ try:
 
         if not pemasukan_summary.empty:
             col_offset = 5
-            worksheet.cell(row=start_rekap_row, column=col_offset).value = "🔺 Rekap Pemasukan 7 Hari Terakhir"
+            worksheet.cell(row=start_rekap_row, column=col_offset).value = "🔺 Rekap Pemasukan Harian"
             worksheet.cell(row=start_rekap_row, column=col_offset).font = Font(bold=True, size=14)
 
             for idx, row in pemasukan_summary.iterrows():
