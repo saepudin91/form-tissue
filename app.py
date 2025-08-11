@@ -167,7 +167,7 @@ try:
     # 📈 Rekap di Streamlit
     # =============================
     st.markdown("---")
-    st.subheader("📈 Rekap harian")
+    st.subheader("📈 Rekap Harian")
     if not pengeluaran_summary.empty:
         st.write("### 🔻 Total Pengeluaran:")
         st.dataframe(pengeluaran_summary)
