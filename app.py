@@ -125,41 +125,44 @@ try:
         workbook = writer.book
         worksheet = writer.sheets["Log Tissue"]
 
-        # Judul
+        # Judul utama
         worksheet.merge_cells("A1:F1")
         cell = worksheet["A1"]
         cell.value = "📋 Data Tissue Masuk & Keluar"
         cell.font = Font(bold=True, size=20)
         cell.alignment = Alignment(horizontal="center")
 
+        # Lebar kolom otomatis
         for col in range(1, 7):
-            worksheet.column_dimensions[get_column_letter(col)].width = 15
+            worksheet.column_dimensions[get_column_letter(col)].width = 18
 
+        # Baris awal rekap
         start_rekap_row = len(df) + 6
 
+        # ======================
         # Rekap Pengeluaran
-        if not pengeluaran_summary.empty:
-            worksheet.cell(row=start_rekap_row, column=1).value = "🔻 Rekap Pengeluaran Harian"
-            worksheet.cell(row=start_rekap_row, column=1).font = Font(bold=True, size=14)
-            for r in dataframe_to_rows(pengeluaran_summary, index=False, header=True):
-                worksheet.append(r)
+        # ======================
+        worksheet.cell(row=start_rekap_row, column=1, value="🔻 Rekap Pengeluaran Harian").font = Font(bold=True, size=14)
+        for i, row in enumerate(pengeluaran_summary.values.tolist(), start_rekap_row + 1):
+            worksheet.cell(row=i, column=1, value=row[0])
+            worksheet.cell(row=i, column=2, value=row[1])
 
-        # Sisa Stok di tengah
-        if not stok_df.empty:
-            worksheet.cell(row=start_rekap_row, column=3).value = "📦 Sisa Stok"
-            worksheet.cell(row=start_rekap_row, column=3).font = Font(bold=True, size=14)
-            for idx, row in stok_df.iterrows():
-                worksheet.cell(row=start_rekap_row + 1 + idx, column=3).value = row["Jenis"]
-                worksheet.cell(row=start_rekap_row + 1 + idx, column=4).value = row["Sisa Stok"]
-
+        # ======================
         # Rekap Pemasukan
-        if not pemasukan_summary.empty:
-            col_offset = 5
-            worksheet.cell(row=start_rekap_row, column=col_offset).value = "🔺 Rekap Pemasukan Harian"
-            worksheet.cell(row=start_rekap_row, column=col_offset).font = Font(bold=True, size=14)
-            for idx, row in pemasukan_summary.iterrows():
-                worksheet.cell(row=start_rekap_row + 1 + idx, column=col_offset).value = row["Jenis"]
-                worksheet.cell(row=start_rekap_row + 1 + idx, column=col_offset + 1).value = row["Total Pemasukan"]
+        # ======================
+        worksheet.cell(row=start_rekap_row, column=5, value="🔺 Rekap Pemasukan Harian").font = Font(bold=True, size=14)
+        for i, row in enumerate(pemasukan_summary.values.tolist(), start_rekap_row + 1):
+            worksheet.cell(row=i, column=5, value=row[0])
+            worksheet.cell(row=i, column=6, value=row[1])
+
+        # ======================
+        # Sisa Stok
+        # ======================
+        stok_row_start = start_rekap_row + max(len(pengeluaran_summary), len(pemasukan_summary)) + 3
+        worksheet.cell(row=stok_row_start, column=1, value="📦 Sisa Stok").font = Font(bold=True, size=14)
+        for i, row in enumerate(stok_df.values.tolist(), stok_row_start + 1):
+            worksheet.cell(row=i, column=1, value=row[0])
+            worksheet.cell(row=i, column=2, value=row[2])  # Sisa stok ada di kolom ke-3 stok_df
 
     buffer.seek(0)
     st.download_button(
@@ -168,6 +171,7 @@ try:
         file_name="log_tissue_dan_rekap.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
+
 
     # =============================
     # 📈 Rekap di Streamlit
