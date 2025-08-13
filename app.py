@@ -4,7 +4,6 @@ from datetime import datetime
 from io import BytesIO
 from openpyxl.styles import Font, Alignment
 from openpyxl.utils import get_column_letter
-from openpyxl.utils.dataframe import dataframe_to_rows
 import gspread
 from google.oauth2.service_account import Credentials
 
@@ -97,6 +96,9 @@ try:
 
     df["Tanggal"] = pd.to_datetime(df["Tanggal"])
 
+    # =============================
+    # Rekap Harian
+    # =============================
     pengeluaran_summary = df[df["Pengeluaran"] > 0].groupby("Jenis")["Pengeluaran"].sum().reset_index()
     pengeluaran_summary.rename(columns={"Pengeluaran": "Total Pengeluaran"}, inplace=True)
 
@@ -104,7 +106,7 @@ try:
     pemasukan_summary.rename(columns={"Pemasukan": "Total Pemasukan"}, inplace=True)
 
     # =============================
-    # 🚨 Notifikasi & Sisa Stok
+    # Sisa Stok dari data asli
     # =============================
     stok_df = pd.merge(pemasukan_summary, pengeluaran_summary, on="Jenis", how="outer").fillna(0)
     stok_df["Sisa Stok"] = stok_df["Total Pemasukan"] - stok_df["Total Pengeluaran"]
@@ -121,6 +123,7 @@ try:
     # =============================
     buffer = BytesIO()
     with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+        # Sheet utama
         df.to_excel(writer, sheet_name="Log Tissue", index=False, startrow=2)
         workbook = writer.book
         worksheet = writer.sheets["Log Tissue"]
@@ -132,47 +135,31 @@ try:
         cell.font = Font(bold=True, size=20)
         cell.alignment = Alignment(horizontal="center")
 
-        # Lebar kolom otomatis
+        # Lebar kolom
         for col in range(1, 7):
             worksheet.column_dimensions[get_column_letter(col)].width = 18
 
         # Baris awal rekap
         start_rekap_row = len(df) + 6
 
-        # ======================
         # Rekap Pengeluaran
-        # ======================
         worksheet.cell(row=start_rekap_row, column=1, value="🔻 Rekap Pengeluaran Harian").font = Font(bold=True, size=14)
         for i, row in enumerate(pengeluaran_summary.values.tolist(), start_rekap_row + 1):
             worksheet.cell(row=i, column=1, value=row[0])
             worksheet.cell(row=i, column=2, value=row[1])
 
-        # ======================
         # Rekap Pemasukan
-        # ======================
         worksheet.cell(row=start_rekap_row, column=5, value="🔺 Rekap Pemasukan Harian").font = Font(bold=True, size=14)
         for i, row in enumerate(pemasukan_summary.values.tolist(), start_rekap_row + 1):
             worksheet.cell(row=i, column=5, value=row[0])
             worksheet.cell(row=i, column=6, value=row[1])
 
-        # ======================
-        # Hitung Sisa Stok dari Data Asli
-        # ======================
-        sisa_stok_list = []
-        for jenis in df["Jenis"].unique():
-            total_masuk = df.loc[df["Jenis"] == jenis, "Pemasukan"].sum()
-            total_keluar = df.loc[df["Jenis"] == jenis, "Pengeluaran"].sum()
-            sisa_stok = total_masuk - total_keluar
-            sisa_stok_list.append([jenis, sisa_stok])
-
-        # ======================
-        # 📦 Sisa Stok
-        # ======================
+        # Sisa Stok (dari data asli)
         stok_row_start = start_rekap_row + max(len(pengeluaran_summary), len(pemasukan_summary)) + 3
         worksheet.cell(row=stok_row_start, column=1, value="📦 Sisa Stok").font = Font(bold=True, size=14)
-        for i, (jenis, sisa) in enumerate(sisa_stok_list, stok_row_start + 1):
-            worksheet.cell(row=i, column=1, value=jenis)
-            worksheet.cell(row=i, column=2, value=sisa)
+        for i, r in enumerate(stok_df[["Jenis", "Sisa Stok"]].values.tolist(), stok_row_start + 1):
+            worksheet.cell(row=i, column=1, value=r[0])
+            worksheet.cell(row=i, column=2, value=int(r[1]))
 
     buffer.seek(0)
     st.download_button(
@@ -181,7 +168,6 @@ try:
         file_name="log_tissue_dan_rekap.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
-
 
     # =============================
     # 📈 Rekap di Streamlit
