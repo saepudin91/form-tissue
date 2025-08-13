@@ -97,8 +97,8 @@ try:
 
     df["Tanggal"] = pd.to_datetime(df["Tanggal"])
 
-    pengeluaran_last7 = df[(df["Pengeluaran"] > 0) & (df["Tanggal"] >= datetime.today() - timedelta(days=6))]
-    pemasukan_last7 = df[(df["Pemasukan"] > 0) & (df["Tanggal"] >= datetime.today() - timedelta(days=6))]
+    pengeluaran_last7 = df[df["Pengeluaran"] > 0]
+    pemasukan_last7 = df[df["Pemasukan"] > 0]
 
     pengeluaran_summary = pengeluaran_last7.groupby("Jenis")["Pengeluaran"].sum().reset_index()
     pengeluaran_summary.rename(columns={"Pengeluaran": "Total Pengeluaran"}, inplace=True)
