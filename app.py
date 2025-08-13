@@ -156,13 +156,23 @@ try:
             worksheet.cell(row=i, column=6, value=row[1])
 
         # ======================
-        # Sisa Stok
+        # Hitung Sisa Stok dari Data Asli
+        # ======================
+        sisa_stok_list = []
+        for jenis in df["Jenis"].unique():
+            total_masuk = df.loc[df["Jenis"] == jenis, "Pemasukan"].sum()
+            total_keluar = df.loc[df["Jenis"] == jenis, "Pengeluaran"].sum()
+            sisa_stok = total_masuk - total_keluar
+            sisa_stok_list.append([jenis, sisa_stok])
+
+        # ======================
+        # 📦 Sisa Stok
         # ======================
         stok_row_start = start_rekap_row + max(len(pengeluaran_summary), len(pemasukan_summary)) + 3
         worksheet.cell(row=stok_row_start, column=1, value="📦 Sisa Stok").font = Font(bold=True, size=14)
-        for i, row in enumerate(stok_df.values.tolist(), stok_row_start + 1):
-            worksheet.cell(row=i, column=1, value=row[0])
-            worksheet.cell(row=i, column=2, value=row[2])  # Sisa stok ada di kolom ke-3 stok_df
+        for i, (jenis, sisa) in enumerate(sisa_stok_list, stok_row_start + 1):
+            worksheet.cell(row=i, column=1, value=jenis)
+            worksheet.cell(row=i, column=2, value=sisa)
 
     buffer.seek(0)
     st.download_button(
