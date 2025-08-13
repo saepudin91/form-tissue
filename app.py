@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime
 from io import BytesIO
 from openpyxl.styles import Font, Alignment
 from openpyxl.utils import get_column_letter
@@ -97,26 +97,24 @@ try:
 
     df["Tanggal"] = pd.to_datetime(df["Tanggal"])
 
-    pengeluaran_last7 = df[df["Pengeluaran"] > 0]
-    pemasukan_last7 = df[df["Pemasukan"] > 0]
-
-    pengeluaran_summary = pengeluaran_last7.groupby("Jenis")["Pengeluaran"].sum().reset_index()
+    pengeluaran_summary = df[df["Pengeluaran"] > 0].groupby("Jenis")["Pengeluaran"].sum().reset_index()
     pengeluaran_summary.rename(columns={"Pengeluaran": "Total Pengeluaran"}, inplace=True)
 
-    pemasukan_summary = pemasukan_last7.groupby("Jenis")["Pemasukan"].sum().reset_index()
+    pemasukan_summary = df[df["Pemasukan"] > 0].groupby("Jenis")["Pemasukan"].sum().reset_index()
     pemasukan_summary.rename(columns={"Pemasukan": "Total Pemasukan"}, inplace=True)
 
     # =============================
-    # 🚨 Notifikasi Stok
+    # 🚨 Notifikasi & Sisa Stok
     # =============================
-    if not pemasukan_summary.empty and not pengeluaran_summary.empty:
-        st.markdown("### 🚨 Notifikasi Stok Tissue")
-        stok_df = pd.merge(pemasukan_summary, pengeluaran_summary, on="Jenis", how="outer").fillna(0)
-        stok_df["Sisa Stok"] = stok_df["Total Pemasukan"] - stok_df["Total Pengeluaran"]
+    stok_df = pd.merge(pemasukan_summary, pengeluaran_summary, on="Jenis", how="outer").fillna(0)
+    stok_df["Sisa Stok"] = stok_df["Total Pemasukan"] - stok_df["Total Pengeluaran"]
 
-        for _, row in stok_df.iterrows():
-            if row["Sisa Stok"] <= 15:
-                st.warning(f"⚠️ Stok {row['Jenis']} tersisa {int(row['Sisa Stok'])}. Segera lakukan pemesanan!")
+    st.markdown("### 📦 Sisa Stok Tissue")
+    st.dataframe(stok_df)
+
+    for _, row in stok_df.iterrows():
+        if row["Sisa Stok"] <= 15:
+            st.warning(f"⚠️ Stok {row['Jenis']} tersisa {int(row['Sisa Stok'])}. Segera lakukan pemesanan!")
 
     # =============================
     # 📥 Export ke Excel
@@ -139,18 +137,26 @@ try:
 
         start_rekap_row = len(df) + 6
 
+        # Rekap Pengeluaran
         if not pengeluaran_summary.empty:
             worksheet.cell(row=start_rekap_row, column=1).value = "🔻 Rekap Pengeluaran Harian"
             worksheet.cell(row=start_rekap_row, column=1).font = Font(bold=True, size=14)
-
             for r in dataframe_to_rows(pengeluaran_summary, index=False, header=True):
                 worksheet.append(r)
 
+        # Sisa Stok di tengah
+        if not stok_df.empty:
+            worksheet.cell(row=start_rekap_row, column=3).value = "📦 Sisa Stok"
+            worksheet.cell(row=start_rekap_row, column=3).font = Font(bold=True, size=14)
+            for idx, row in stok_df.iterrows():
+                worksheet.cell(row=start_rekap_row + 1 + idx, column=3).value = row["Jenis"]
+                worksheet.cell(row=start_rekap_row + 1 + idx, column=4).value = row["Sisa Stok"]
+
+        # Rekap Pemasukan
         if not pemasukan_summary.empty:
             col_offset = 5
             worksheet.cell(row=start_rekap_row, column=col_offset).value = "🔺 Rekap Pemasukan Harian"
             worksheet.cell(row=start_rekap_row, column=col_offset).font = Font(bold=True, size=14)
-
             for idx, row in pemasukan_summary.iterrows():
                 worksheet.cell(row=start_rekap_row + 1 + idx, column=col_offset).value = row["Jenis"]
                 worksheet.cell(row=start_rekap_row + 1 + idx, column=col_offset + 1).value = row["Total Pemasukan"]
